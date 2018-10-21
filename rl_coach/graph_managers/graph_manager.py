@@ -232,28 +232,74 @@ class GraphManager(object):
             # restore from checkpoint if given
             self.restore_checkpoint()
 
-        # tf.train.write_graph(tf.get_default_graph(),
-        #                      logdir=self.task_parameters.save_checkpoint_dir,
-        #                      name='graphdef.pb',
-        #                      as_text=False)
+        # self.save_graph()
         # self.save_checkpoint()
-        #
-        # output_nodes = []
-        # for level in self.level_managers:
-        #     for agent in level.agents.values():
-        #         for network in agent.networks.values():
-        #             for output in network.online_network.outputs:
-        #                 output_nodes.append(output.name.split(":")[0])
-        #
-        # freeze_graph_command = [
-        #     "python -m tensorflow.python.tools.freeze_graph",
-        #     "--input_graph={}".format(os.path.join(self.task_parameters.save_checkpoint_dir, "graphdef.pb")),
-        #     "--input_binary=true",
-        #     "--output_node_names='{}'".format(','.join(output_nodes)),
-        #     "--input_checkpoint={}".format(os.path.join(self.task_parameters.save_checkpoint_dir, "0_Step-0.ckpt")),
-        #     "--output_graph={}".format(os.path.join(self.task_parameters.save_checkpoint_dir, "frozen_graph.pb"))
-        # ]
-        # start_shell_command_and_wait(" ".join(freeze_graph_command))
+        # self.save_onnx_graph()
+
+    def save_graph(self) -> None:
+        """
+        Save the TF graph to a protobuf description file in the experiment directory
+        :return: None
+        """
+        import tensorflow as tf
+
+        # write graph
+        tf.train.write_graph(tf.get_default_graph(),
+                             logdir=self.task_parameters.save_checkpoint_dir,
+                             name='graphdef.pb',
+                             as_text=False)
+
+    def save_onnx_graph(self) -> None:
+        """
+        Save the graph as an ONNX graph.
+        This requires several steps:
+        1. Save the TF graph as a graphdef protobuf file
+        2. Save the graph weights checkpoint
+        3. Freeze the graph (merge graph and weights)
+        4. Convert frozen graph to ONNX graph
+        :return: None
+        """
+        import tensorflow as tf
+
+        # collect input nodes
+        input_nodes = []
+        for level in self.level_managers:
+            for agent in level.agents.values():
+                for network in agent.networks.values():
+                    for input in network.online_network.inputs.values():
+                        input_nodes.append(input.name)
+
+        # collect output nodes
+        output_nodes = []
+        for level in self.level_managers:
+            for agent in level.agents.values():
+                for network in agent.networks.values():
+                    for output in network.online_network.outputs:
+                        output_nodes.append(output.name)
+
+        # freeze graph
+        frozen_graph_path = os.path.join(self.task_parameters.save_checkpoint_dir, "frozen_graph.pb")
+        freeze_graph_command = [
+            "python -m tensorflow.python.tools.freeze_graph",
+            "--input_graph={}".format(os.path.join(self.task_parameters.save_checkpoint_dir, "graphdef.pb")),
+            "--input_binary=true",
+            "--output_node_names='{}'".format(','.join([o.split(":")[0] for o in output_nodes])),
+            "--input_checkpoint={}".format(tf.train.latest_checkpoint(self.task_parameters.save_checkpoint_dir)),
+            "--output_graph={}".format(frozen_graph_path)
+        ]
+        start_shell_command_and_wait(" ".join(freeze_graph_command))
+
+        # convert graph to onnx
+        onnx_graph_path = os.path.join(self.task_parameters.save_checkpoint_dir, "model.onnx")
+        convert_to_onnx_command = [
+            "python -m tf2onnx.convert",
+            "--input {}".format(frozen_graph_path),
+            "--inputs '{}'".format(','.join(input_nodes)),
+            "--outputs '{}'".format(','.join(output_nodes)),
+            "--output {}".format(onnx_graph_path),
+            "--verbose"
+        ]
+        start_shell_command_and_wait(" ".join(convert_to_onnx_command))
 
     def setup_logger(self) -> None:
         # dump documentation
@@ -436,7 +482,7 @@ class GraphManager(object):
                 # This is just an high-level controller.
                 self.act(EnvironmentSteps(1))
                 self.train(TrainingSteps(1))
-                self.save_checkpoint()
+                self.occasionally_save_checkpoint()
             self.phase = RunPhase.UNDEFINED
 
     def sync_graph(self) -> None:
@@ -492,35 +538,37 @@ class GraphManager(object):
             for v in self.variables_to_restore:
                 self.sess.run(v.assign(variables[v.name.split(':')[0]]))
 
-    def save_checkpoint(self):
+    def occasionally_save_checkpoint(self):
         # only the chief process saves checkpoints
-        if self.task_parameters.save_checkpoint_secs \
-                and time.time() - self.last_checkpoint_saving_time >= self.task_parameters.save_checkpoint_secs \
+        if self.task_parameters.checkpoint_save_secs \
+                and time.time() - self.last_checkpoint_saving_time >= self.task_parameters.checkpoint_save_secs \
                 and (self.task_parameters.task_index == 0  # distributed
                      or self.task_parameters.task_index is None  # single-worker
                      ):
+            self.save_checkpoint()
 
-            checkpoint_path = os.path.join(self.task_parameters.save_checkpoint_dir,
-                                           "{}_Step-{}.ckpt".format(
-                                               self.checkpoint_id,
-                                               self.total_steps_counters[RunPhase.TRAIN][EnvironmentSteps]))
-            if not isinstance(self.task_parameters, DistributedTaskParameters):
-                saved_checkpoint_path = self.checkpoint_saver.save(self.sess, checkpoint_path)
-            else:
-                saved_checkpoint_path = checkpoint_path
+    def save_checkpoint(self):
+        checkpoint_path = os.path.join(self.task_parameters.save_checkpoint_dir,
+                                       "{}_Step-{}.ckpt".format(
+                                           self.checkpoint_id,
+                                           self.total_steps_counters[RunPhase.TRAIN][EnvironmentSteps]))
+        if not isinstance(self.task_parameters, DistributedTaskParameters):
+            saved_checkpoint_path = self.checkpoint_saver.save(self.sess, checkpoint_path)
+        else:
+            saved_checkpoint_path = checkpoint_path
 
-            # this is required in order for agents to save additional information like a DND for example
-            [manager.save_checkpoint(self.checkpoint_id) for manager in self.level_managers]
+        # this is required in order for agents to save additional information like a DND for example
+        [manager.save_checkpoint(self.checkpoint_id) for manager in self.level_managers]
 
-            screen.log_dict(
-                OrderedDict([
-                    ("Saving in path", saved_checkpoint_path),
-                ]),
-                prefix="Checkpoint"
-            )
+        screen.log_dict(
+            OrderedDict([
+                ("Saving in path", saved_checkpoint_path),
+            ]),
+            prefix="Checkpoint"
+        )
 
-            self.checkpoint_id += 1
-            self.last_checkpoint_saving_time = time.time()
+        self.checkpoint_id += 1
+        self.last_checkpoint_saving_time = time.time()
 
     def improve(self):
         """
