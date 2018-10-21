@@ -308,6 +308,13 @@ def main():
                         help="(int) A seed to use for running the experiment",
                         default=None,
                         type=int)
+    parser.add_argument('-onnx', '--export_onnx_graph',
+                        help="(flag) Export the ONNX graph to the experiment directory. "
+                             "This will have effect only if the --save_checkpoint_secs flag is used in order to store "
+                             "checkpoints, since the weights checkpoint are needed for the ONNX graph. "
+                             "Keep in mind that this can cause major overhead on the experiment. "
+                             "Exporting ONNX graphs requires installing the tf2onnx package.",
+                        action='store_true')
 
     args = parse_arguments(parser)
 

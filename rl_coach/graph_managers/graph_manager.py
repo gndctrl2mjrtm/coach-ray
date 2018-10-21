@@ -232,9 +232,9 @@ class GraphManager(object):
             # restore from checkpoint if given
             self.restore_checkpoint()
 
-        # self.save_graph()
-        # self.save_checkpoint()
-        # self.save_onnx_graph()
+        # the TF graph is static, and therefore is saved once - in the beginning of the experiment
+        if hasattr(self.task_parameters, 'checkpoint_restore_dir') and self.task_parameters.checkpoint_restore_dir:
+            self.save_graph()
 
     def save_graph(self) -> None:
         """
@@ -252,14 +252,12 @@ class GraphManager(object):
     def save_onnx_graph(self) -> None:
         """
         Save the graph as an ONNX graph.
-        This requires several steps:
-        1. Save the TF graph as a graphdef protobuf file
-        2. Save the graph weights checkpoint
-        3. Freeze the graph (merge graph and weights)
-        4. Convert frozen graph to ONNX graph
+        This requires the TF graph and the weights checkpoint to be stored in the experiment directory.
+        It then freezes the graph (merging the graph and weights checkpoint), and converts it to ONNX.
         :return: None
         """
         import tensorflow as tf
+        import tf2onnx  # just to verify that tf2onnx is installed
 
         # collect input nodes
         input_nodes = []
@@ -540,8 +538,8 @@ class GraphManager(object):
 
     def occasionally_save_checkpoint(self):
         # only the chief process saves checkpoints
-        if self.task_parameters.checkpoint_save_secs \
-                and time.time() - self.last_checkpoint_saving_time >= self.task_parameters.checkpoint_save_secs \
+        if self.task_parameters.save_checkpoint_secs \
+                and time.time() - self.last_checkpoint_saving_time >= self.task_parameters.save_checkpoint_secs \
                 and (self.task_parameters.task_index == 0  # distributed
                      or self.task_parameters.task_index is None  # single-worker
                      ):
@@ -559,6 +557,10 @@ class GraphManager(object):
 
         # this is required in order for agents to save additional information like a DND for example
         [manager.save_checkpoint(self.checkpoint_id) for manager in self.level_managers]
+
+        # the ONNX graph will be stored only if checkpoints are stored and the -onnx flag is used
+        if self.task_parameters.export_onnx_graph:
+            self.save_onnx_graph()
 
         screen.log_dict(
             OrderedDict([
