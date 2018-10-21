@@ -169,6 +169,10 @@ def parse_arguments(parser: argparse.ArgumentParser) -> argparse.Namespace:
     # checkpoints
     args.save_checkpoint_dir = os.path.join(args.experiment_path, 'checkpoint') if args.save_checkpoint_secs is not None else None
 
+    if args.export_onnx_graph and not args.save_checkpoint_secs:
+        screen.warning("Exporting ONNX graphs requires setting the --save_checkpoint_secs flag. "
+                       "The --export_onnx_graph will have no effect.")
+
     return args
 
 
@@ -313,7 +317,8 @@ def main():
                              "This will have effect only if the --save_checkpoint_secs flag is used in order to store "
                              "checkpoints, since the weights checkpoint are needed for the ONNX graph. "
                              "Keep in mind that this can cause major overhead on the experiment. "
-                             "Exporting ONNX graphs requires installing the tf2onnx package.",
+                             "Exporting ONNX graphs requires manually installing the tf2onnx package "
+                             "(https://github.com/onnx/tensorflow-onnx).",
                         action='store_true')
 
     args = parse_arguments(parser)
