@@ -233,7 +233,7 @@ class GraphManager(object):
             self.restore_checkpoint()
 
         # the TF graph is static, and therefore is saved once - in the beginning of the experiment
-        if hasattr(self.task_parameters, 'checkpoint_restore_dir') and self.task_parameters.checkpoint_restore_dir:
+        if hasattr(self.task_parameters, 'save_checkpoint_dir') and self.task_parameters.save_checkpoint_dir:
             self.save_graph()
 
     def save_graph(self) -> None:
@@ -264,8 +264,9 @@ class GraphManager(object):
         for level in self.level_managers:
             for agent in level.agents.values():
                 for network in agent.networks.values():
-                    for input in network.online_network.inputs.values():
-                        input_nodes.append(input.name)
+                    for input_key, input in network.online_network.inputs.items():
+                        if not input_key.startswith("output_"):
+                            input_nodes.append(input.name)
 
         # collect output nodes
         output_nodes = []
