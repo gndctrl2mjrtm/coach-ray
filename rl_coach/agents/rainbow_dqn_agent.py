@@ -25,6 +25,8 @@ from rl_coach.architectures.tensorflow_components.heads.rainbow_q_head import Ra
 from rl_coach.architectures.tensorflow_components.middlewares.fc_middleware import FCMiddlewareParameters
 from rl_coach.base_parameters import MiddlewareScheme
 from rl_coach.exploration_policies.parameter_noise import ParameterNoiseParameters
+from rl_coach.memories.episodic.episodic_prioritized_experience_replay import \
+    EpisodicPrioritizedExperienceReplayParameters
 from rl_coach.memories.non_episodic.prioritized_experience_replay import PrioritizedExperienceReplayParameters, \
     PrioritizedExperienceReplay
 
@@ -39,24 +41,15 @@ class RainbowDQNNetworkParameters(DQNNetworkParameters):
 class RainbowDQNAlgorithmParameters(CategoricalDQNAlgorithmParameters):
     def __init__(self):
         super().__init__()
-
-
-class RainbowDQNExplorationParameters(ParameterNoiseParameters):
-    def __init__(self, agent_params):
-        super().__init__(agent_params)
-
-
-class RainbowDQNMemoryParameters(PrioritizedExperienceReplayParameters):
-    def __init__(self):
-        super().__init__()
+        self.n_step = 3
 
 
 class RainbowDQNAgentParameters(CategoricalDQNAgentParameters):
     def __init__(self):
         super().__init__()
         self.algorithm = RainbowDQNAlgorithmParameters()
-        self.exploration = RainbowDQNExplorationParameters(self)
-        self.memory = PrioritizedExperienceReplayParameters()
+        self.exploration = ParameterNoiseParameters(self)
+        self.memory = EpisodicPrioritizedExperienceReplayParameters()
         self.network_wrappers = {"main": RainbowDQNNetworkParameters()}
 
     @property
@@ -87,7 +80,7 @@ class RainbowDQNAgent(CategoricalDQNAgent):
 
         # for the action we actually took, the error is calculated by the atoms distribution
         # for all other actions, the error is 0
-        distributed_q_st_plus_1, TD_targets = self.networks['main'].parallel_prediction([
+        distributed_q_st_plus_n, TD_targets = self.networks['main'].parallel_prediction([
             (self.networks['main'].target_network, batch.next_states(network_keys)),
             (self.networks['main'].online_network, batch.states(network_keys))
         ])
@@ -98,15 +91,17 @@ class RainbowDQNAgent(CategoricalDQNAgent):
 
         batches = np.arange(self.ap.network_wrappers['main'].batch_size)
         for j in range(self.z_values.size):
-            tzj = np.fmax(np.fmin(batch.rewards() +
-                                  (1.0 - batch.game_overs()) * self.ap.algorithm.discount * self.z_values[j],
-                                  self.z_values[self.z_values.size - 1]),
-                          self.z_values[0])
+            # TODO: rename total_returns to total_n_step_returns
+            # we use batch.info('should_bootstrap_next_state') instead of (1 - batch.game_overs()) since with n-step,
+            # we will not bootstrap for the last n-step transitions in the episode
+            tzj = np.fmax(np.fmin(batch.total_returns() + batch.info('should_bootstrap_next_state') *
+                                  (self.ap.algorithm.discount ** self.ap.algorithm.n_step) * self.z_values[j],
+                                  self.z_values[self.z_values.size - 1]), self.z_values[0])
             bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])
             u = (np.ceil(bj)).astype(int)
             l = (np.floor(bj)).astype(int)
-            m[batches, l] = m[batches, l] + (distributed_q_st_plus_1[batches, target_actions, j] * (u - bj))
-            m[batches, u] = m[batches, u] + (distributed_q_st_plus_1[batches, target_actions, j] * (bj - l))
+            m[batches, l] = m[batches, l] + (distributed_q_st_plus_n[batches, target_actions, j] * (u - bj))
+            m[batches, u] = m[batches, u] + (distributed_q_st_plus_n[batches, target_actions, j] * (bj - l))
 
         # total_loss = cross entropy between actual result above and predicted result for the given action
         TD_targets[batches, batch.actions()] = m
@@ -122,7 +117,7 @@ class RainbowDQNAgent(CategoricalDQNAgent):
         # TODO: fix this spaghetti code
         if isinstance(self.memory, PrioritizedExperienceReplay):
             errors = losses[0][np.arange(batch.size), batch.actions()]
-            self.memory.update_priorities(batch.info('idx'), errors)
+            self.call_memory('update_priorities', (batch.info('idx'), errors))
 
         return total_loss, losses, unclipped_grads
 

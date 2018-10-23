@@ -97,7 +97,7 @@ class PolicyOptimizationAgent(Agent):
                 network.set_is_training(True)
 
             # we need to update the returns of the episode until now
-            episode.update_returns()
+            episode.update_transitions_rewards_and_bootstrap_data()
 
             # get t_max transitions or less if the we got to a terminal state
             # will be used for both actor-critic and vanilla PG.

@@ -120,7 +120,8 @@ class CategoricalDQNAgent(ValueOptimizationAgent):
         # TODO: fix this spaghetti code
         if isinstance(self.memory, PrioritizedExperienceReplay):
             errors = losses[0][np.arange(batch.size), batch.actions()]
-            self.memory.update_priorities(batch.info('idx'), errors)
+            self.call_memory('update_priorities', (batch.info('idx'), errors))
+
 
         return total_loss, losses, unclipped_grads
 

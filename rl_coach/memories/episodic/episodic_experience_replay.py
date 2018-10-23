@@ -19,6 +19,7 @@ from typing import List, Tuple, Union, Dict, Any
 import numpy as np
 
 from rl_coach.core_types import Transition, Episode
+from rl_coach.memories.episodic.episodic_memory import EpisodicMemory
 from rl_coach.memories.memory import Memory, MemoryGranularity, MemoryParameters
 from rl_coach.utils import ReaderWriterLock
 
@@ -27,25 +28,26 @@ class EpisodicExperienceReplayParameters(MemoryParameters):
     def __init__(self):
         super().__init__()
         self.max_size = (MemoryGranularity.Transitions, 1000000)
+        self.n_step = -1
 
     @property
     def path(self):
         return 'rl_coach.memories.episodic.episodic_experience_replay:EpisodicExperienceReplay'
 
 
-class EpisodicExperienceReplay(Memory):
+class EpisodicExperienceReplay(EpisodicMemory):
     """
     A replay buffer that stores episodes of transitions. The additional structure allows performing various
     calculations of total return and other values that depend on the sequential behavior of the transitions
     in the episode.
     """
-    def __init__(self, max_size: Tuple[MemoryGranularity, int]):
+    def __init__(self, max_size: Tuple[MemoryGranularity, int]=(MemoryGranularity.Transitions, 1000000), n_step=-1):
         """
         :param max_size: the maximum number of transitions or episodes to hold in the memory
         """
         super().__init__(max_size)
-
-        self._buffer = [Episode()]  # list of episodes
+        self.n_step = n_step
+        self._buffer = [Episode(n_step=self.n_step)]  # list of episodes
         self.transitions = []
         self._length = 1  # the episodic replay buffer starts with a single empty episode
         self._num_transitions = 0
@@ -111,7 +113,7 @@ class EpisodicExperienceReplay(Memory):
                 self._remove_episode(0)
 
     def _update_episode(self, episode: Episode) -> None:
-        episode.update_returns()
+        episode.update_transitions_rewards_and_bootstrap_data()
 
     def verify_last_episode_is_closed(self) -> None:
         """
@@ -140,7 +142,7 @@ class EpisodicExperienceReplay(Memory):
         self._length += 1
 
         # create a new Episode for the next transitions to be placed into
-        self._buffer.append(Episode())
+        self._buffer.append(Episode(n_step=self.n_step))
 
         # if update episode adds to the buffer, a new Episode needs to be ready first
         # it would be better if this were less state full
@@ -163,7 +165,7 @@ class EpisodicExperienceReplay(Memory):
         self.reader_writer_lock.lock_writing_and_reading()
 
         if len(self._buffer) == 0:
-            self._buffer.append(Episode())
+            self._buffer.append(Episode(n_step=self.n_step))
         last_episode = self._buffer[-1]
         last_episode.insert(transition)
         self.transitions.append(transition)
@@ -298,7 +300,7 @@ class EpisodicExperienceReplay(Memory):
         self.reader_writer_lock.lock_writing_and_reading()
 
         self.transitions = []
-        self._buffer = [Episode()]
+        self._buffer = [Episode(n_step=self.n_step)]
         self._length = 1
         self._num_transitions = 0
         self._num_transitions_in_complete_episodes = 0

@@ -125,6 +125,7 @@ class Middleware_LSTM_Embedding(MiddlewareEmbedding):
 class Measurements(PredictionType):
     pass
 
+
 PlayingStepsType = Union[EnvironmentSteps, EnvironmentEpisodes, Frames]
 
 
@@ -139,8 +140,8 @@ class RunPhase(Enum):
 # transitions
 
 class Transition(object):
-    def __init__(self, state: Dict[str, np.ndarray]=None, action: ActionType=None, reward: RewardType=None,
-                 next_state: Dict[str, np.ndarray]=None, game_over: bool=None, info: Dict=None):
+    def __init__(self, state: Dict[str, np.ndarray] = None, action: ActionType = None, reward: RewardType = None,
+                 next_state: Dict[str, np.ndarray] = None, game_over: bool = None, info: Dict = None):
         """
         A transition is a tuple containing the information of a single step of interaction
         between the agent and the environment. The most basic version should contain the following values:
@@ -254,8 +255,8 @@ class Transition(object):
 
 
 class EnvResponse(object):
-    def __init__(self, next_state: Dict[str, ObservationType], reward: RewardType, game_over: bool, info: Dict=None,
-                 goal: ObservationType=None):
+    def __init__(self, next_state: Dict[str, ObservationType], reward: RewardType, game_over: bool, info: Dict = None,
+                 goal: ObservationType = None):
         """
         An env response is a collection containing the information returning from the environment after a single action
         has been performed on it.
@@ -322,9 +323,10 @@ class ActionInfo(object):
     """
     Action info is a class that holds an action and various additional information details about it
     """
-    def __init__(self, action: ActionType, action_probability: float=0,
-                 action_value: float=0., state_value: float=0., max_action_value: float=None,
-                 action_intrinsic_reward: float=0):
+
+    def __init__(self, action: ActionType, action_probability: float = 0,
+                 action_value: float = 0., state_value: float = 0., max_action_value: float = None,
+                 action_intrinsic_reward: float = 0):
         """
         :param action: the action
         :param action_probability: the probability that the action was given when selecting it
@@ -510,7 +512,8 @@ class Batch(object):
         # addition to the current_state, so that all the inputs of the network will be filled)
         for key in set(fetches).intersection(self.transitions[0].next_state.keys()):
             if key not in self._next_states.keys():
-                self._next_states[key] = np.array([np.array(transition.next_state[key]) for transition in self.transitions])
+                self._next_states[key] = np.array(
+                    [np.array(transition.next_state[key]) for transition in self.transitions])
             if expand_dims:
                 next_states[key] = np.expand_dims(self._next_states[key], -1)
             else:
@@ -530,6 +533,16 @@ class Batch(object):
             return np.expand_dims(self._goals, -1)
         return self._goals
 
+    def info_as_list(self, key) -> list:
+        """
+        get the info and store it internally as a list, if wasn't stored before. return it as a list
+        :param expand_dims: add an extra dimension to the info batch
+        :return: a list containing all the info values of the batch corresponding to the given key
+        """
+        if key not in self._info.keys():
+            self._info[key] = [transition.info[key] for transition in self.transitions]
+        return self._info[key]
+
     def info(self, key, expand_dims=False) -> np.ndarray:
         """
         if the given info dictionary key was not converted to a batch before, extract it to a batch and then return the
@@ -537,11 +550,11 @@ class Batch(object):
         :param expand_dims: add an extra dimension to the info batch
         :return: a numpy array containing all the info values of the batch corresponding to the given key
         """
-        if key not in self._info.keys():
-            self._info[key] = np.array([transition.info[key] for transition in self.transitions])
+        info_list = self.info_as_list(key)
+
         if expand_dims:
-            return np.expand_dims(self._info[key], -1)
-        return self._info[key]
+            return np.expand_dims(info_list, -1)
+        return np.array(info_list)
 
     @property
     def size(self) -> int:
@@ -572,6 +585,7 @@ class TotalStepsCounter(object):
     """
     A wrapper around a dictionary counting different StepMethods steps done.
     """
+
     def __init__(self):
         self.counters = {
             EnvironmentEpisodes: 0,
@@ -604,7 +618,7 @@ class GradientClippingMethod(Enum):
 
 
 class Episode(object):
-    def __init__(self, discount: float=0.99, bootstrap_total_return_from_old_policy: bool=False, n_step: int=-1):
+    def __init__(self, discount: float = 0.99, bootstrap_total_return_from_old_policy: bool = False, n_step: int = -1):
         """
         :param discount: the discount factor to use when calculating total returns
         :param bootstrap_total_return_from_old_policy: should the total return be bootstrapped from the values in the
@@ -641,28 +655,48 @@ class Episode(object):
     def get_first_transition(self):
         return self.get_transition(0) if self.length() > 0 else None
 
-    def update_returns(self):
+    def update_discounted_rewards(self):
         if self.n_step == -1 or self.n_step > self.length():
             curr_n_step = self.length()
         else:
             curr_n_step = self.n_step
+
         rewards = np.array([t.reward for t in self.transitions])
         rewards = rewards.astype('float')
-        total_return = rewards.copy()
+        discounted_rewards = rewards.copy()
         current_discount = self.discount
         for i in range(1, curr_n_step):
-            total_return += current_discount * np.pad(rewards[i:], (0, i), 'constant', constant_values=0)
+            discounted_rewards += current_discount * np.pad(rewards[i:], (0, i), 'constant', constant_values=0)
             current_discount *= self.discount
 
         # calculate the bootstrapped returns
         if self.bootstrap_total_return_from_old_policy:
             bootstraps = np.array([np.squeeze(t.info['max_action_value']) for t in self.transitions[curr_n_step:]])
-            bootstrapped_return = total_return + current_discount * np.pad(bootstraps, (0, curr_n_step), 'constant',
-                                                                           constant_values=0)
-            total_return = bootstrapped_return
+            bootstrapped_return = discounted_rewards + current_discount * np.pad(bootstraps, (0, curr_n_step),
+                                                                                 'constant', constant_values=0)
+            discounted_rewards = bootstrapped_return
 
         for transition_idx in range(self.length()):
-            self.transitions[transition_idx].total_return = total_return[transition_idx]
+            self.transitions[transition_idx].total_return = discounted_rewards[transition_idx]
+
+    def update_transitions_rewards_and_bootstrap_data(self):
+        if (self.n_step < 1 and self.n_step != -1) or not isinstance(self.n_step, int):
+            raise ValueError("n-step should be an integer with value >= 1, or set to -1 for always setting to episode"
+                             " length.")
+        elif self.n_step > 1:
+            curr_n_step = self.n_step if self.n_step < self.length() else self.length()
+
+            for idx, transition in enumerate(self.transitions):
+                next_n_step_transition_idx = (idx + curr_n_step)
+                if next_n_step_transition_idx < len(self.transitions):
+                    # next state will now point to the n-step next state
+                    transition.next_state = self.transitions[next_n_step_transition_idx].state
+                    transition.info['should_bootstrap_next_state'] = True
+                else:
+                    transition.next_state = self.transitions[-1].next_state
+                    transition.info['should_bootstrap_next_state'] = False
+
+        self.update_discounted_rewards()
 
     def update_actions_probabilities(self):
         probability_product = 1

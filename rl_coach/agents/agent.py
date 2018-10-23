@@ -30,6 +30,7 @@ from rl_coach.core_types import RunPhase, PredictionType, EnvironmentEpisodes, A
 from rl_coach.core_types import Transition, ActionInfo, TrainingSteps, EnvironmentSteps, EnvResponse
 from rl_coach.logger import screen, Logger, EpisodeLogger
 from rl_coach.memories.episodic.episodic_experience_replay import EpisodicExperienceReplay
+from rl_coach.memories.episodic.episodic_memory import EpisodicMemory
 from rl_coach.spaces import SpacesDefinition, VectorObservationSpace, GoalsSpace, AttentionActionSpace
 from rl_coach.utils import Signal, force_list
 from rl_coach.utils import dynamic_import_and_instantiate_module_from_params
@@ -71,7 +72,7 @@ class Agent(AgentInterface):
         memory_name = self.ap.memory.path.split(':')[1]
         self.memory_lookup_name = self.full_name_id + '.' + memory_name
         if self.shared_memory and not self.is_chief:
-            self.memory = self.shared_memory_scratchpad.get(self.memory_lookup_name)
+            self.memory = self.shared_memory_scratchpad.get_element_by_partial_sum(self.memory_lookup_name)
         else:
             # modules
             self.memory = dynamic_import_and_instantiate_module_from_params(self.ap.memory)
@@ -107,7 +108,6 @@ class Agent(AgentInterface):
         self.output_filter.set_device(device)
         self.pre_network_filter.set_device(device)
 
-
         # initialize all internal variables
         self._phase = RunPhase.HEATUP
         self.total_shaped_reward_in_current_episode = 0
@@ -134,7 +134,7 @@ class Agent(AgentInterface):
         self.accumulated_shaped_rewards_across_evaluation_episodes = 0
         self.num_successes_across_evaluation_episodes = 0
         self.num_evaluation_episodes_completed = 0
-        self.current_episode_buffer = Episode(discount=self.ap.algorithm.discount)
+        self.current_episode_buffer = Episode(discount=self.ap.algorithm.discount, n_step=self.ap.algorithm.n_step)
         # TODO: add agents observation rendering for debugging purposes (not the same as the environment rendering)
 
         # environment parameters
@@ -444,7 +444,7 @@ class Agent(AgentInterface):
         :return: None
         """
         self.current_episode_buffer.is_complete = True
-        self.current_episode_buffer.update_returns()
+        self.current_episode_buffer.update_transitions_rewards_and_bootstrap_data()
 
         for transition in self.current_episode_buffer.transitions:
             self.discounted_return.add_sample(transition.total_return)
@@ -453,7 +453,7 @@ class Agent(AgentInterface):
             self.current_episode += 1
 
         if self.phase != RunPhase.TEST:
-            if isinstance(self.memory, EpisodicExperienceReplay):
+            if isinstance(self.memory, EpisodicMemory):
                 self.call_memory('store_episode', self.current_episode_buffer)
             elif self.ap.algorithm.store_transitions_only_when_episodes_are_terminated:
                 for transition in self.current_episode_buffer.transitions:
@@ -489,7 +489,7 @@ class Agent(AgentInterface):
         self.curr_state = {}
         self.current_episode_steps_counter = 0
         self.episode_running_info = {}
-        self.current_episode_buffer = Episode(discount=self.ap.algorithm.discount)
+        self.current_episode_buffer = Episode(discount=self.ap.algorithm.discount, n_step=self.ap.algorithm.n_step)
         if self.exploration_policy:
             self.exploration_policy.reset()
         self.input_filter.reset()
@@ -762,7 +762,7 @@ class Agent(AgentInterface):
                 # for episodic memories we keep the transitions in a local buffer until the episode is ended.
                 # for regular memories we insert the transitions directly to the memory
                 self.current_episode_buffer.insert(transition)
-                if not isinstance(self.memory, EpisodicExperienceReplay) \
+                if not isinstance(self.memory, EpisodicMemory) \
                         and not self.ap.algorithm.store_transitions_only_when_episodes_are_terminated:
                     self.call_memory('store', transition)
 
