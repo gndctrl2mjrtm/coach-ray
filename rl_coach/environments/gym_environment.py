@@ -44,7 +44,7 @@ from typing import Dict, Any, Union
 from rl_coach.core_types import RunPhase, EnvironmentSteps
 from rl_coach.environments.environment import Environment, EnvironmentParameters, LevelSelection
 from rl_coach.spaces import DiscreteActionSpace, BoxActionSpace, ImageObservationSpace, VectorObservationSpace, \
-    StateSpace, RewardSpace
+    StateSpace, RewardSpace, CompoundActionSpace, MultiSelectActionSpace
 from rl_coach.filters.filter import NoInputFilter, NoOutputFilter
 from rl_coach.filters.reward.reward_clipping_filter import RewardClippingFilter
 from rl_coach.filters.observation.observation_rescale_to_size_filter import ObservationRescaleToSizeFilter
@@ -267,8 +267,9 @@ class GymEnvironment(Environment):
             state_space = self.env.observation_space.spaces
 
         for observation_space_name, observation_space in state_space.items():
-            if len(observation_space.shape) == 3 and observation_space.shape[-1] == 3:
-                # we assume gym has image observations which are RGB and where their values are within 0-255
+            if len(observation_space.shape) == 3:
+                # we assume gym has image observations (with arbitrary number of channels) where their values are
+                # within 0-255, and where the channel dimension is the last dimension
                 self.state_space[observation_space_name] = ImageObservationSpace(
                     shape=np.array(observation_space.shape),
                     high=255,
@@ -297,6 +298,18 @@ class GymEnvironment(Environment):
             self.action_space = DiscreteActionSpace(
                 num_actions=self.env.action_space.n,
                 descriptions=actions_description
+            )
+        elif type(self.env.action_space) == gym.spaces.MultiDiscrete:
+            # vector where each element is a discrete action
+            self.action_space = CompoundActionSpace(
+                sub_spaces=[DiscreteActionSpace(num_actions=int(n)) for n in self.env.action_space.nvec]
+            )
+        elif type(self.env.action_space) == gym.spaces.MultiBinary:
+            # binary vector
+            self.action_space = MultiSelectActionSpace(
+                size=self.env.action_space.n,
+                max_simultaneous_selected_actions=self.env.action_space.n,
+                allow_no_action_to_be_selected=True
             )
 
         if self.human_control:
