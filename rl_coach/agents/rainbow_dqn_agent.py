@@ -96,7 +96,7 @@ class RainbowDQNAgent(CategoricalDQNAgent):
             # we will not bootstrap for the last n-step transitions in the episode
             tzj = np.fmax(np.fmin(batch.total_returns() + batch.info('should_bootstrap_next_state') *
                                   (self.ap.algorithm.discount ** self.ap.algorithm.n_step) * self.z_values[j],
-                                  self.z_values[self.z_values.size - 1]), self.z_values[0])
+                                  self.z_values[-1]), self.z_values[0])
             bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])
             u = (np.ceil(bj)).astype(int)
             l = (np.floor(bj)).astype(int)
