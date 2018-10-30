@@ -96,37 +96,37 @@ class CategoricalDQNAgent(ValueOptimizationAgent):
 
         batches = np.arange(self.ap.network_wrappers['main'].batch_size)
 
-        # an alternative to the for loop. 3.7x perf improvement vs. for looping.
-        tzj_ = np.fmax(np.fmin(batch.rewards() + (1.0 - batch.game_overs()) * self.ap.algorithm.discount *
-                               np.transpose(np.repeat(self.z_values[np.newaxis, :], batch.size, axis=0), (1, 0)),
-                            self.z_values[-1]),
-                    self.z_values[0])
+        # an alternative to the for loop. 3.7x perf improvement vs. the same code done with for looping.
+        # only 10% speedup overall - leaving commented out as the code is not as clear.
 
-        bj_ = (tzj_ - self.z_values[0]) / (self.z_values[1] - self.z_values[0])
-        u_ = (np.ceil(bj_)).astype(int)
-        l_ = (np.floor(bj_)).astype(int)
-        m_ = np.zeros((self.ap.network_wrappers['main'].batch_size, self.z_values.size))
-        np.add.at(m_, [batches, l_],
-                  np.transpose(distributional_q_st_plus_1[batches, target_actions], (1, 0)) * (u_ - bj_))
-        np.add.at(m_, [batches, u_],
-                  np.transpose(distributional_q_st_plus_1[batches, target_actions], (1, 0)) * (bj_ - l_))
+        # tzj_ = np.fmax(np.fmin(batch.rewards() + (1.0 - batch.game_overs()) * self.ap.algorithm.discount *
+        #                        np.transpose(np.repeat(self.z_values[np.newaxis, :], batch.size, axis=0), (1, 0)),
+        #                     self.z_values[-1]),
+        #             self.z_values[0])
         #
-        # for j in range(self.z_values.size):
-        #     tzj = np.fmax(np.fmin(batch.rewards() +
-        #                           (1.0 - batch.game_overs()) * self.ap.algorithm.discount * self.z_values[j],
-        #                           self.z_values[-1]),
-        #                   self.z_values[0])
-        #     bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])
-        #     u = (np.ceil(bj)).astype(int)
-        #     l = (np.floor(bj)).astype(int)
-        #     m[batches, l] = m[batches, l] + (distributional_q_st_plus_1[batches, target_actions, j] * (u - bj))
-        #     m[batches, u] = m[batches, u] + (distributional_q_st_plus_1[batches, target_actions, j] * (bj - l))
-        # #TODO-remove me
-        # # print(np.sum(np.abs(m-m_)))
+        # bj_ = (tzj_ - self.z_values[0]) / (self.z_values[1] - self.z_values[0])
+        # u_ = (np.ceil(bj_)).astype(int)
+        # l_ = (np.floor(bj_)).astype(int)
+        # m_ = np.zeros((self.ap.network_wrappers['main'].batch_size, self.z_values.size))
+        # np.add.at(m_, [batches, l_],
+        #           np.transpose(distributional_q_st_plus_1[batches, target_actions], (1, 0)) * (u_ - bj_))
+        # np.add.at(m_, [batches, u_],
+        #           np.transpose(distributional_q_st_plus_1[batches, target_actions], (1, 0)) * (bj_ - l_))
+
+        for j in range(self.z_values.size):
+            tzj = np.fmax(np.fmin(batch.rewards() +
+                                  (1.0 - batch.game_overs()) * self.ap.algorithm.discount * self.z_values[j],
+                                  self.z_values[-1]),
+                          self.z_values[0])
+            bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])
+            u = (np.ceil(bj)).astype(int)
+            l = (np.floor(bj)).astype(int)
+            m[batches, l] += (distributional_q_st_plus_1[batches, target_actions, j] * (u - bj))
+            m[batches, u] += (distributional_q_st_plus_1[batches, target_actions, j] * (bj - l))
 
         # total_loss = cross entropy between actual result above and predicted result for the given action
         # only update the action that we have actually done in this transition
-        TD_targets[batches, batch.actions()] = m_
+        TD_targets[batches, batch.actions()] = m
 
         # update errors in prioritized replay buffer
         importance_weights = batch.info('weight') if isinstance(self.memory, PrioritizedExperienceReplay) else None
@@ -140,7 +140,6 @@ class CategoricalDQNAgent(ValueOptimizationAgent):
         if isinstance(self.memory, PrioritizedExperienceReplay):
             errors = losses[0][np.arange(batch.size), batch.actions()]
             self.call_memory('update_priorities', (batch.info('idx'), errors))
-
 
         return total_loss, losses, unclipped_grads
 

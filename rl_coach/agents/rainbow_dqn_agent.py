@@ -80,7 +80,7 @@ class RainbowDQNAgent(CategoricalDQNAgent):
 
         # for the action we actually took, the error is calculated by the atoms distribution
         # for all other actions, the error is 0
-        distributed_q_st_plus_n, TD_targets = self.networks['main'].parallel_prediction([
+        distributional_q_st_plus_n, TD_targets = self.networks['main'].parallel_prediction([
             (self.networks['main'].target_network, batch.next_states(network_keys)),
             (self.networks['main'].online_network, batch.states(network_keys))
         ])
@@ -100,8 +100,8 @@ class RainbowDQNAgent(CategoricalDQNAgent):
             bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])
             u = (np.ceil(bj)).astype(int)
             l = (np.floor(bj)).astype(int)
-            m[batches, l] = m[batches, l] + (distributed_q_st_plus_n[batches, target_actions, j] * (u - bj))
-            m[batches, u] = m[batches, u] + (distributed_q_st_plus_n[batches, target_actions, j] * (bj - l))
+            m[batches, l] = m[batches, l] + (distributional_q_st_plus_n[batches, target_actions, j] * (u - bj))
+            m[batches, u] = m[batches, u] + (distributional_q_st_plus_n[batches, target_actions, j] * (bj - l))
 
         # total_loss = cross entropy between actual result above and predicted result for the given action
         TD_targets[batches, batch.actions()] = m

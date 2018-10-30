@@ -72,7 +72,7 @@ class Agent(AgentInterface):
         memory_name = self.ap.memory.path.split(':')[1]
         self.memory_lookup_name = self.full_name_id + '.' + memory_name
         if self.shared_memory and not self.is_chief:
-            self.memory = self.shared_memory_scratchpad.get_element_by_partial_sum(self.memory_lookup_name)
+            self.memory = self.shared_memory_scratchpad.get(self.memory_lookup_name)
         else:
             # modules
             self.memory = dynamic_import_and_instantiate_module_from_params(self.ap.memory)
