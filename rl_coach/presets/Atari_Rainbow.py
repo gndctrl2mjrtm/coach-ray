@@ -15,17 +15,13 @@ schedule_params.improve_steps = EnvironmentSteps(50000000)
 schedule_params.steps_between_evaluation_periods = EnvironmentSteps(1000000)
 schedule_params.evaluation_steps = EnvironmentSteps(125000)
 schedule_params.heatup_steps = EnvironmentSteps(20000)
-# TODO - remove me
-# schedule_params.heatup_steps = EnvironmentSteps(500)
 
 #########
 # Agent #
 #########
 agent_params = RainbowDQNAgentParameters()
 
-# TODO - change me back
-# agent_params.network_wrappers['main'].learning_rate = 0.0000625
-agent_params.network_wrappers['main'].learning_rate = 0.00025
+agent_params.network_wrappers['main'].learning_rate = 0.0000625
 agent_params.network_wrappers['main'].optimizer_epsilon = 1.5e-4
 agent_params.algorithm.num_steps_between_copying_online_weights_to_target = EnvironmentSteps(32000 // 4)  # 32k frames
 agent_params.memory.beta = LinearSchedule(0.4, 1, 12500000)  # 12.5M training iterations = 50M steps = 200M frames
