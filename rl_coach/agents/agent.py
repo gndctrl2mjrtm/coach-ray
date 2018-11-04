@@ -447,7 +447,7 @@ class Agent(AgentInterface):
         self.current_episode_buffer.update_transitions_rewards_and_bootstrap_data()
 
         for transition in self.current_episode_buffer.transitions:
-            self.discounted_return.add_sample(transition.total_return)
+            self.discounted_return.add_sample(transition.n_step_discounted_rewards)
 
         if self.phase != RunPhase.TEST or self.ap.task_parameters.evaluate_only:
             self.current_episode += 1

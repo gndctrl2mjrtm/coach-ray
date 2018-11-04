@@ -58,15 +58,13 @@ class RainbowDQNAgentParameters(CategoricalDQNAgentParameters):
 
 
 # Rainbow Deep Q Network - https://arxiv.org/abs/1710.02298
-# Agent implementation is WIP. Currently is composed of:
+# Agent implementation is composed of:
 # 1. NoisyNets
 # 2. C51
 # 3. Prioritized ER
 # 4. DDQN
 # 5. Dueling DQN
-#
-# still missing:
-# 1. N-Step
+# 6. N-step returns
 
 class RainbowDQNAgent(CategoricalDQNAgent):
     def __init__(self, agent_parameters, parent: Union['LevelManager', 'CompositeAgent']=None):
@@ -91,10 +89,9 @@ class RainbowDQNAgent(CategoricalDQNAgent):
 
         batches = np.arange(self.ap.network_wrappers['main'].batch_size)
         for j in range(self.z_values.size):
-            # TODO: rename total_returns to total_n_step_returns
             # we use batch.info('should_bootstrap_next_state') instead of (1 - batch.game_overs()) since with n-step,
             # we will not bootstrap for the last n-step transitions in the episode
-            tzj = np.fmax(np.fmin(batch.total_returns() + batch.info('should_bootstrap_next_state') *
+            tzj = np.fmax(np.fmin(batch.n_step_discounted_rewards() + batch.info('should_bootstrap_next_state') *
                                   (self.ap.algorithm.discount ** self.ap.algorithm.n_step) * self.z_values[j],
                                   self.z_values[-1]), self.z_values[0])
             bj = (tzj - self.z_values[0])/(self.z_values[1] - self.z_values[0])

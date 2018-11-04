@@ -140,8 +140,8 @@ class RunPhase(Enum):
 # transitions
 
 class Transition(object):
-    def __init__(self, state: Dict[str, np.ndarray] = None, action: ActionType = None, reward: RewardType = None,
-                 next_state: Dict[str, np.ndarray] = None, game_over: bool = None, info: Dict = None):
+    def __init__(self, state: Dict[str, np.ndarray]=None, action: ActionType=None, reward: RewardType=None,
+                 next_state: Dict[str, np.ndarray]=None, game_over: bool=None, info: Dict=None):
         """
         A transition is a tuple containing the information of a single step of interaction
         between the agent and the environment. The most basic version should contain the following values:
@@ -163,7 +163,7 @@ class Transition(object):
         self._state = self.state = state
         self._action = self.action = action
         self._reward = self.reward = reward
-        self._total_return = self.total_return = None
+        self._n_step_discounted_rewards = self.n_step_discounted_rewards = None
         if not next_state:
             next_state = state
         self._next_state = self._next_state = next_state
@@ -208,15 +208,15 @@ class Transition(object):
         self._reward = val
 
     @property
-    def total_return(self):
-        if self._total_return is None:
+    def n_step_discounted_rewards(self):
+        if self._n_step_discounted_rewards is None:
             raise Exception("The total_return was not filled by any of the modules between the environment and the "
                             "agent.  Make sure that you are using an episodic experience replay.")
-        return self._total_return
+        return self._n_step_discounted_rewards
 
-    @total_return.setter
-    def total_return(self, val):
-        self._total_return = val
+    @n_step_discounted_rewards.setter
+    def n_step_discounted_rewards(self, val):
+        self._n_step_discounted_rewards = val
 
     @property
     def game_over(self):
@@ -255,8 +255,8 @@ class Transition(object):
 
 
 class EnvResponse(object):
-    def __init__(self, next_state: Dict[str, ObservationType], reward: RewardType, game_over: bool, info: Dict = None,
-                 goal: ObservationType = None):
+    def __init__(self, next_state: Dict[str, ObservationType], reward: RewardType, game_over: bool, info: Dict=None,
+                 goal: ObservationType=None):
         """
         An env response is a collection containing the information returning from the environment after a single action
         has been performed on it.
@@ -324,9 +324,9 @@ class ActionInfo(object):
     Action info is a class that holds an action and various additional information details about it
     """
 
-    def __init__(self, action: ActionType, action_probability: float = 0,
-                 action_value: float = 0., state_value: float = 0., max_action_value: float = None,
-                 action_intrinsic_reward: float = 0):
+    def __init__(self, action: ActionType, action_probability: float=0,
+                 action_value: float=0., state_value: float=0., max_action_value: float=None,
+                 action_intrinsic_reward: float=0):
         """
         :param action: the action
         :param action_probability: the probability that the action was given when selecting it
@@ -361,7 +361,7 @@ class Batch(object):
         self._states = {}
         self._actions = None
         self._rewards = None
-        self._total_returns = None
+        self._n_step_discounted_rewards = None
         self._game_overs = None
         self._next_states = {}
         self._goals = None
@@ -382,8 +382,8 @@ class Batch(object):
             self._actions = self._actions[start:end]
         if self._rewards is not None:
             self._rewards = self._rewards[start:end]
-        if self._total_returns is not None:
-            self._total_returns = self._total_returns[start:end]
+        if self._n_step_discounted_rewards is not None:
+            self._n_step_discounted_rewards = self._n_step_discounted_rewards[start:end]
         if self._game_overs is not None:
             self._game_overs = self._game_overs[start:end]
         for k, v in self._next_states.items():
@@ -404,7 +404,7 @@ class Batch(object):
         self._states = {}
         self._actions = None
         self._rewards = None
-        self._total_returns = None
+        self._n_step_discounted_rewards = None
         self._game_overs = None
         self._next_states = {}
         self._goals = None
@@ -473,18 +473,20 @@ class Batch(object):
             return np.expand_dims(self._rewards, -1)
         return self._rewards
 
-    def total_returns(self, expand_dims=False) -> np.ndarray:
+    def n_step_discounted_rewards(self, expand_dims=False) -> np.ndarray:
         """
-        if the total_returns were not converted to a batch before, extract them to a batch and then return the batch
-        if the total return was not filled, this will raise an exception
+        if the n_step_discounted_rewards were not converted to a batch before, extract them to a batch and then return
+         the batch
+        if the n step discounted rewards were not filled, this will raise an exception
         :param expand_dims: add an extra dimension to the total_returns batch
         :return: a numpy array containing all the total return values of the batch
         """
-        if self._total_returns is None:
-            self._total_returns = np.array([transition.total_return for transition in self.transitions])
+        if self._n_step_discounted_rewards is None:
+            self._n_step_discounted_rewards = np.array([transition.n_step_discounted_rewards for transition in
+                                                        self.transitions])
         if expand_dims:
-            return np.expand_dims(self._total_returns, -1)
-        return self._total_returns
+            return np.expand_dims(self._n_step_discounted_rewards, -1)
+        return self._n_step_discounted_rewards
 
     def game_overs(self, expand_dims=False) -> np.ndarray:
         """
@@ -618,7 +620,7 @@ class GradientClippingMethod(Enum):
 
 
 class Episode(object):
-    def __init__(self, discount: float = 0.99, bootstrap_total_return_from_old_policy: bool = False, n_step: int = -1):
+    def __init__(self, discount: float=0.99, bootstrap_total_return_from_old_policy: bool=False, n_step: int=-1):
         """
         :param discount: the discount factor to use when calculating total returns
         :param bootstrap_total_return_from_old_policy: should the total return be bootstrapped from the values in the
@@ -677,10 +679,10 @@ class Episode(object):
             discounted_rewards = bootstrapped_return
 
         for transition_idx in range(self.length()):
-            self.transitions[transition_idx].total_return = discounted_rewards[transition_idx]
+            self.transitions[transition_idx].n_step_discounted_rewards = discounted_rewards[transition_idx]
 
     def update_transitions_rewards_and_bootstrap_data(self):
-        if (self.n_step < 1 and self.n_step != -1) or not isinstance(self.n_step, int):
+        if not isinstance(self.n_step, int) or (self.n_step < 1 and self.n_step != -1):
             raise ValueError("n-step should be an integer with value >= 1, or set to -1 for always setting to episode"
                              " length.")
         elif self.n_step > 1:
