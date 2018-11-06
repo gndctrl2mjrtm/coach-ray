@@ -331,24 +331,13 @@ def main():
                         default=None,
                         type=int)
 
-    parser.add_argument('--ray_object_store_memory',
-                        help="The amount of memory (in bytes) to start the object store with",
-                        default=None,
-                        type=int)
-
-    parser.add_argument('--ray_node_ip_address',
-                        help="The IP address of the node that we are on",
-                        default=None,
-                        type=str)
-
-
     args = parse_arguments(parser)
 
     graph_manager = get_graph_manager_from_args(args)
 
     # Intel optimized TF seems to run significantly faster when limiting to a single OMP thread.
     # This will not affect GPU runs.
-    os.environ["OMP_NUM_THREADS"] = "1"
+    # os.environ["OMP_NUM_THREADS"] = "1"
 
     # turn TF debug prints off
     if args.framework == Frameworks.tensorflow:
@@ -379,7 +368,9 @@ def main():
 
     # Multi-threaded runs
     else:
-        ray.init()
+        ray.init(redis_address=args.ray_redis_address,
+            num_cpus=args.ray_num_cpus,
+            num_gpus=args.ray_num_gpus)
 
         total_tasks = args.num_workers
         if args.evaluation_worker:

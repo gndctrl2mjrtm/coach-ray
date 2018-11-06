@@ -4,9 +4,9 @@
 [![Docs](https://readthedocs.org/projects/carla/badge/?version=latest)](https://nervanasystems.github.io/coach/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1134898.svg)](https://doi.org/10.5281/zenodo.1134898)
 
-<p align="center" valign="center"><img src="img/coach_logo.png" alt="Coach Logo" height="80"  width="80"/><img src="img/ray_logo.png" alt="Ray Logo" width="200"/></p>
+<p align="center" valign="center"><img src="img/coach_logo.png" alt="Coach Logo" height="80"  width="80"/><img src="img/ray_logo.png" alt="Ray Logo" height = "80" width="200"/></p>
 
-Coach is a python reinforcement learning research framework containing implementation of many state-of-the-art algorithms using the Ray framework.
+Coach is a python reinforcement learning research framework containing implementation of many state-of-the-art algorithms using the Ray framework for distributed training.
 
 It exposes a set of easy-to-use APIs for experimenting with new RL algorithms, and allows simple integration of new environments to solve. 
 Basic RL components (algorithms, environments, neural network architectures, exploration policies, ...) are well decoupled, so that extending and reusing existing components is fairly painless.
@@ -111,7 +111,46 @@ In addition to OpenAI Gym, several other environments were tested and are suppor
 
 ## Usage
 
-### Running Coach
+### Running Coach with Ray
+
+To see all the supported environments and algorithms available:
+```bash
+coach -l
+```
+
+To run any algorithim with Ray, use the -n flag to set the number of workers.
+
+For example:
+* CartPole environment using Policy Gradients (PG) with 5 workers:
+
+  ```bash
+  coach -r -p CartPole_PG -n 5
+  ```
+
+To set the redis address of the main script:
+
+* Atari environment using Dueling DDQN with 3 workers on a specific redis address:
+
+  ```bash
+  coach -r -p Atari_Dueling_DDQN -lvl montezuma_revenge -n 3 --ray_redis_address="127.0.0.1:6380"
+  ```
+
+To set hardware configurations:
+
+* Atari environment using A3C LSTM with 3 workers on 8 CPUs:
+
+  ```bash
+  coach -r -p Atari_A3C_LSTM -lvl boxing -n 3 --ray_num_cpus=8
+  ```
+
+* Atari environment using A3C LSTM with 3 workers on 2 GPUs:
+
+  ```bash
+  coach -r -p Atari_A3C_LSTM -lvl boxing -n 3 --ray_num_gpus=2
+  ```
+
+
+### Running Coach without Ray
 
 To allow reproducing results in Coach, we defined a mechanism called _preset_. 
 There are several available presets under the `presets` directory.
