@@ -113,12 +113,8 @@ In addition to OpenAI Gym, several other environments were tested and are suppor
 
 ### Running Coach with Ray
 
-To see all the supported environments and algorithms available:
-```bash
-coach -l
-```
-
-To run any algorithim with Ray, use the -n flag to set the number of workers.
+There are several types of agents that can benefit from running them in a distrbitued fashion with multiple workers in parallel. Each worker interacts with its own copy of the environment but updates a shared network, which improves the data collection speed and the stability of the learning process.
+To specify the number of workers to run, use the `-n` flag to specify the number of workers.
 
 For example:
 * CartPole environment using Policy Gradients (PG) with 5 workers:
@@ -126,6 +122,11 @@ For example:
   ```bash
   coach -r -p CartPole_PG -n 5
   ```
+
+To see all the supported environments and algorithms available:
+```bash
+coach -l
+```
 
 To set the redis address of the main script:
 
@@ -186,17 +187,6 @@ For example:
   ```bash
   coach -r -p Atari_NEC -lvl pong
   ```
-
-There are several types of agents that can benefit from running them in a distrbitued fashion with multiple workers in parallel. Each worker interacts with its own copy of the environment but updates a shared network, which improves the data collection speed and the stability of the learning process.
-To specify the number of workers to run, use the `-n` flag.
-
-For example:
-* Breakout using Asynchronous Advantage Actor-Critic (A3C) with 8 workers:
-
-  ```bash
-  coach -r -p Atari_A3C -lvl breakout -n 8
-  ```
-
 
 It is easy to create new presets for different levels or environments by following the same pattern as in presets.py
 
