@@ -39,7 +39,8 @@ Contacting the Coach development team is also possible through the email [coach@
   * [Documentation](#documentation)
   * [Installation](#installation)
   * [Usage](#usage)
-    + [Running Coach](#running-coach)
+    + [Running Coach With Ray](#running-coach-with-ray)
+    + [Running Coach Without Ray](#running-coach-without-ray)
     + [Running Coach Dashboard (Visualization)](#running-coach-dashboard-visualization)
   * [Supported Environments](#supported-environments)
   * [Supported Algorithms](#supported-algorithms)
@@ -111,7 +112,7 @@ In addition to OpenAI Gym, several other environments were tested and are suppor
 
 ## Usage
 
-### Running Coach with Ray
+### Running Coach With Ray
 
 There are several types of agents that can benefit from running them in a distrbitued fashion with multiple workers in parallel. Each worker interacts with its own copy of the environment but updates a shared network, which improves the data collection speed and the stability of the learning process.
 To specify the number of workers to run, use the `-n` flag to specify the number of workers.
@@ -151,7 +152,7 @@ To set hardware configurations:
   ```
 
 
-### Running Coach without Ray
+### Running Coach Without Ray
 
 To allow reproducing results in Coach, we defined a mechanism called _preset_. 
 There are several available presets under the `presets` directory.
