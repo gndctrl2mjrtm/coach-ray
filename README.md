@@ -1,4 +1,4 @@
-# Coach
+# Coach-Ray
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/NervanaSystems/coach/blob/master/LICENSE)
 [![Docs](https://readthedocs.org/projects/carla/badge/?version=latest)](https://nervanasystems.github.io/coach/)
@@ -6,7 +6,7 @@
 
 <p align="center"><img src="img/coach_logo.png" alt="Coach Logo" width="200"/></p>
 
-Coach is a python reinforcement learning research framework containing implementation of many state-of-the-art algorithms.
+Coach is a python reinforcement learning research framework containing implementation of many state-of-the-art algorithms using the Ray framework.
 
 It exposes a set of easy-to-use APIs for experimenting with new RL algorithms, and allows simple integration of new environments to solve. 
 Basic RL components (algorithms, environments, neural network architectures, exploration policies, ...) are well decoupled, so that extending and reusing existing components is fairly painless.
