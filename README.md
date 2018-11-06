@@ -4,7 +4,7 @@
 [![Docs](https://readthedocs.org/projects/carla/badge/?version=latest)](https://nervanasystems.github.io/coach/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1134898.svg)](https://doi.org/10.5281/zenodo.1134898)
 
-<p align="center" valign="center"><img src="img/coach_logo.png" alt="Coach Logo" height="100"  width="100"/><img src="img/ray_logo.png" alt="Ray Logo" width="200"/></p>
+<p align="center" valign="center"><img src="img/coach_logo.png" alt="Coach Logo" height="80"  width="80"/><img src="img/ray_logo.png" alt="Ray Logo" width="200"/></p>
 
 Coach is a python reinforcement learning research framework containing implementation of many state-of-the-art algorithms using the Ray framework.
 
