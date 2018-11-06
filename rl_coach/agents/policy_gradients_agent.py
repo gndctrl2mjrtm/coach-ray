@@ -17,6 +17,7 @@
 from typing import Union
 
 import numpy as np
+import ray
 
 from rl_coach.agents.policy_optimization_agent import PolicyOptimizationAgent, PolicyGradientRescaler
 from rl_coach.architectures.tensorflow_components.heads.policy_head import PolicyHeadParameters
@@ -61,6 +62,23 @@ class PolicyGradientsAgentParameters(AgentParameters):
     @property
     def path(self):
         return 'rl_coach.agents.policy_gradients_agent:PolicyGradientsAgent'
+
+
+@ray.remote
+class PolicyGradientServer(object):
+
+    def __init__(self):
+        pass
+
+    def push(self,data):
+        pass 
+
+    def pull(self):
+        return
+
+@ray.remote
+def PolicyGradientWorker():
+    pass
 
 
 class PolicyGradientsAgent(PolicyOptimizationAgent):

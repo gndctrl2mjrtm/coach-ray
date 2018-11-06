@@ -119,6 +119,7 @@ class PolicyOptimizationAgent(Agent):
 
             # accumulate the gradients
             total_loss, losses, unclipped_grads = self.learn_from_batch(batch)
+            print(total_loss,losses,unclipped_grads)
 
             # apply the gradients once in every apply_gradients_every_x_episodes episodes
             if self.current_episode % self.ap.algorithm.apply_gradients_every_x_episodes == 0:

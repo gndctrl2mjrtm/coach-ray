@@ -17,6 +17,8 @@
 import sys
 sys.path.append('.')
 
+import ray
+
 import copy
 from rl_coach.core_types import EnvironmentSteps
 import os
@@ -37,6 +39,8 @@ from rl_coach.agents.human_agent import HumanAgentParameters
 from rl_coach.graph_managers.basic_rl_graph_manager import BasicRLGraphManager
 from rl_coach.environments.environment import SingleLevelSelection
 
+import warnings
+warnings.filterwarnings("ignore")
 
 if len(set(failed_imports)) > 0:
     screen.warning("Warning: failed to import the following packages - {}".format(', '.join(set(failed_imports))))
@@ -195,8 +199,8 @@ def start_graph(graph_manager: 'GraphManager', task_parameters: 'TaskParameters'
     else:
         graph_manager.improve()
 
-
 def main():
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--preset',
                         help="(string) Name of a preset to run (class name from the 'presets' directory.)",
@@ -309,6 +313,35 @@ def main():
                         default=None,
                         type=int)
 
+    parser.add_argument('--ray_redis_address',
+                        help="The address of the Redis server to connect to. If this address is not provided,\
+                         then this command will start Redis, a global scheduler, a local scheduler, \
+                         a plasma store, a plasma manager, and some workers. \
+                         It will also kill these processes when Python exits.",
+                        default=None,
+                        type=str)
+
+    parser.add_argument('--ray_num_cpus',
+                        help="Number of cpus the user wishes all local schedulers to be configured with",
+                        default=None,
+                        type=int)
+
+    parser.add_argument('--ray_num_gpus',
+                        help="Number of gpus the user wishes all local schedulers to be configured with",
+                        default=None,
+                        type=int)
+
+    parser.add_argument('--ray_object_store_memory',
+                        help="The amount of memory (in bytes) to start the object store with",
+                        default=None,
+                        type=int)
+
+    parser.add_argument('--ray_node_ip_address',
+                        help="The IP address of the node that we are on",
+                        default=None,
+                        type=str)
+
+
     args = parse_arguments(parser)
 
     graph_manager = get_graph_manager_from_args(args)
@@ -342,9 +375,12 @@ def main():
         task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
 
         start_graph(graph_manager=graph_manager, task_parameters=task_parameters)
+        #start_graph_ray.remote(graph_manager,task_parameters)
 
     # Multi-threaded runs
     else:
+        ray.init()
+
         total_tasks = args.num_workers
         if args.evaluation_worker:
             total_tasks += 1
@@ -359,6 +395,27 @@ def main():
         comm_manager = CommManager()
         comm_manager.start()
         shared_memory_scratchpad = comm_manager.SharedMemoryScratchPad()
+
+        @ray.remote
+        def start_distributed_ray_task(job_type, task_index, evaluation_worker=False):
+            task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
+                                                        parameters_server_hosts=ps_hosts,
+                                                        worker_hosts=worker_hosts,
+                                                        job_type=job_type,
+                                                        task_index=task_index,
+                                                        evaluate_only=evaluation_worker,
+                                                        use_cpu=args.use_cpu,
+                                                        num_tasks=total_tasks,  # training tasks + 1 evaluation task
+                                                        num_training_tasks=args.num_workers,
+                                                        experiment_path=args.experiment_path,
+                                                        shared_memory_scratchpad=None,
+                                                        seed=args.seed+task_index if args.seed is not None else None)  # each worker gets a different seed
+            task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
+            # we assume that only the evaluation workers are rendering
+            graph_manager.visualization_parameters.render = args.render and evaluation_worker
+            start_graph(graph_manager,task_parameters)
+            return
+
 
         def start_distributed_task(job_type, task_index, evaluation_worker=False,
                                    shared_memory_scratchpad=shared_memory_scratchpad):
@@ -388,17 +445,19 @@ def main():
         # training workers
         # wait a bit before spawning the non chief workers in order to make sure the session is already created
         workers = []
-        workers.append(start_distributed_task("worker", 0))
+        workers.append(start_distributed_ray_task.remote("worker", 0))
         time.sleep(2)
         for task_index in range(1, args.num_workers):
-            workers.append(start_distributed_task("worker", task_index))
+            workers.append(start_distributed_ray_task.remote("worker", task_index))
 
         # evaluation worker
         if args.evaluation_worker:
             evaluation_worker = start_distributed_task("worker", args.num_workers, evaluation_worker=True)
 
         # wait for all workers
-        [w.join() for w in workers]
+        #[w.join() for w in workers]
+        #[start_distributed_ray_task.remote()]
+
         if args.evaluation_worker:
             evaluation_worker.terminate()
 
