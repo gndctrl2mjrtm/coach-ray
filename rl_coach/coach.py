@@ -39,7 +39,7 @@ from rl_coach.agents.human_agent import HumanAgentParameters
 from rl_coach.graph_managers.basic_rl_graph_manager import BasicRLGraphManager
 from rl_coach.environments.environment import SingleLevelSelection
 
-from create_workers import create_worker_devcloud
+from create_worker import create_worker_devcloud
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -335,8 +335,8 @@ def main():
 
     parser.add_argument('--on_devcloud',
                         help="Number of gpus the user wishes all local schedulers to be configured with",
-                        default=None,
-                        type=int)
+                        default=False,
+                        type=bool)
 
     args = parse_arguments(parser)
 
@@ -375,9 +375,9 @@ def main():
 
     # Multi-threaded runs
     else:
-        ray.init(redis_address=args.ray_redis_address,
-            num_cpus=args.ray_num_cpus,
-            num_gpus=args.ray_num_gpus)
+        #ray.init(redis_address=args.ray_redis_address,
+        #    num_cpus=args.ray_num_cpus,
+        #    num_gpus=args.ray_num_gpus)
 
         total_tasks = args.num_workers
         if args.evaluation_worker:

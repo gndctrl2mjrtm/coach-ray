@@ -1,0 +1,75 @@
+Using IP address 10.5.9.30 for this node.
+Process STDOUT and STDERR is being redirected to /tmp/raylogs/.
+Waiting for redis server at 127.0.0.1:6380 to respond...
+Waiting for redis server at 127.0.0.1:48943 to respond...
+Starting the Plasma object store with 80.00 GB memory.
+Starting local scheduler with the following resources: {'CPU': 24, 'GPU': 0}.
+
+======================================================================
+View the web UI at http://localhost:8888/notebooks/ray_ui11648.ipynb?token=ba047d574d38a1165ca4f4f12be2df67ca9fa8ecc018502f
+======================================================================
+
+{'node_ip_address': '10.5.9.30', 'redis_address': '10.5.9.30:6380', 'object_store_addresses': [ObjectStoreAddress(name='/tmp/plasma_store37902485', manager_name='/tmp/plasma_manager29648085', manager_port=47378)], 'local_scheduler_socket_names': ['/tmp/scheduler81943089'], 'raylet_socket_names': [], 'webui_url': 'http://localhost:8888/notebooks/ray_ui11648.ipynb?token=ba047d574d38a1165ca4f4f12be2df67ca9fa8ecc018502f'}
+
+Started Ray on this node. You can add additional nodes to the cluster by calling
+
+    ray start --redis-address 10.5.9.30:6380
+
+from the node you wish to add. You can connect a driver to the cluster from Python by running
+
+    import ray
+    ray.init(redis_address="10.5.9.30:6380")
+
+If you have trouble connecting from a different machine, check that your firewall is configured properly. If you wish to terminate the processes that have been started, run
+
+    ray stop
+Using IP address 10.5.9.30 for this node.
+Process STDOUT and STDERR is being redirected to /tmp/raylogs/.
+Waiting for redis server at 127.0.0.1:6380 to respond...
+Waiting for redis server at 127.0.0.1:20408 to respond...
+Starting the Plasma object store with 80.00 GB memory.
+Starting local scheduler with the following resources: {'CPU': 24, 'GPU': 0}.
+
+======================================================================
+View the web UI at http://localhost:8888/notebooks/ray_ui2300.ipynb?token=09f53cd89963a95c247029afd3b0e05b2b54e26f76469886
+======================================================================
+
+{'node_ip_address': '10.5.9.30', 'redis_address': '10.5.9.30:6380', 'object_store_addresses': [ObjectStoreAddress(name='/tmp/plasma_store53522707', manager_name='/tmp/plasma_manager51057733', manager_port=39018)], 'local_scheduler_socket_names': ['/tmp/scheduler86554589'], 'raylet_socket_names': [], 'webui_url': 'http://localhost:8888/notebooks/ray_ui2300.ipynb?token=09f53cd89963a95c247029afd3b0e05b2b54e26f76469886'}
+
+Started Ray on this node. You can add additional nodes to the cluster by calling
+
+    ray start --redis-address 10.5.9.30:6380
+
+from the node you wish to add. You can connect a driver to the cluster from Python by running
+
+    import ray
+    ray.init(redis_address="10.5.9.30:6380")
+
+If you have trouble connecting from a different machine, check that your firewall is configured properly. If you wish to terminate the processes that have been started, run
+
+    ray stop
+Using IP address 10.5.9.30 for this node.
+Process STDOUT and STDERR is being redirected to /tmp/raylogs/.
+Waiting for redis server at 127.0.0.1:6380 to respond...
+Waiting for redis server at 127.0.0.1:50787 to respond...
+Starting the Plasma object store with 80.00 GB memory.
+Starting local scheduler with the following resources: {'CPU': 24, 'GPU': 0}.
+
+======================================================================
+View the web UI at http://localhost:8888/notebooks/ray_ui4874.ipynb?token=c697c9239afe76a2888f0e62d9ca0b3855934eb4ab5581ee
+======================================================================
+
+{'node_ip_address': '10.5.9.30', 'redis_address': '10.5.9.30:6380', 'object_store_addresses': [ObjectStoreAddress(name='/tmp/plasma_store86464409', manager_name='/tmp/plasma_manager6494652', manager_port=19868)], 'local_scheduler_socket_names': ['/tmp/scheduler6825152'], 'raylet_socket_names': [], 'webui_url': 'http://localhost:8888/notebooks/ray_ui4874.ipynb?token=c697c9239afe76a2888f0e62d9ca0b3855934eb4ab5581ee'}
+
+Started Ray on this node. You can add additional nodes to the cluster by calling
+
+    ray start --redis-address 10.5.9.30:6380
+
+from the node you wish to add. You can connect a driver to the cluster from Python by running
+
+    import ray
+    ray.init(redis_address="10.5.9.30:6380")
+
+If you have trouble connecting from a different machine, check that your firewall is configured properly. If you wish to terminate the processes that have been started, run
+
+    ray stop

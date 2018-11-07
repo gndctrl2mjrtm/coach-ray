@@ -4,21 +4,21 @@ import os
 
 def create_worker_devcloud(n_workers):
     # Stop any existing servers
-    os.system('ray stop')
+    #os.system('ray stop')
 
     # Clean up existing workers/temp files
-    os.system('rm -f STDIN.*')
-    os.system('rm -f start_ray_worker*')
+    #os.system('rm -f STDIN.*')
+    #os.system('rm -f start_ray_worker*')
 
     # Find any current worker jobs and remove them
-    os.system('qstat | grep start_ray_worker | cut -f 1 -d ' ' | xargs qdel')
+    #os.system('qstat | grep start_ray_worker | cut -f 1 -d ' ' | xargs qdel')
 
     # Wait until qdel removes any ray worker jobs
-    time.sleep(1)
+    #time.sleep(1)
 
     # Display all jobs in the queue
     # There should only be one job running in the jupyterhub queue
-    os.system('qstat')
+    #os.system('qstat')
 
     # Write the Ray head node commands to start_ray
     with open('start_ray','w') as f:
@@ -36,10 +36,10 @@ def create_worker_devcloud(n_workers):
 
     #Call start_ray_worker multiple times for more nodes (5 max)
     for _ in range(n_workers):
-        os.system('!qsub start_ray_worker')
-
+        os.system('/usr/local/bin/qsub start_ray_worker')
+   
     time.sleep(10)
-
+    ray.init("localhost:6380")
     @ray.remote
     def f():
         time.sleep(0.01)
