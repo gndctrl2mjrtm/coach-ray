@@ -39,6 +39,8 @@ from rl_coach.agents.human_agent import HumanAgentParameters
 from rl_coach.graph_managers.basic_rl_graph_manager import BasicRLGraphManager
 from rl_coach.environments.environment import SingleLevelSelection
 
+from create_workers import create_worker_devcloud
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -331,6 +333,11 @@ def main():
                         default=None,
                         type=int)
 
+    parser.add_argument('--on_devcloud',
+                        help="Number of gpus the user wishes all local schedulers to be configured with",
+                        default=None,
+                        type=int)
+
     args = parse_arguments(parser)
 
     graph_manager = get_graph_manager_from_args(args)
@@ -375,6 +382,9 @@ def main():
         total_tasks = args.num_workers
         if args.evaluation_worker:
             total_tasks += 1
+
+        if args.on_devcloud:
+            ips = create_worker_devcloud(args.num_workers)
 
         ps_hosts = "localhost:{}".format(get_open_port())
         worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
