@@ -30,21 +30,21 @@ def create_worker_devcloud(n_workers):
     os.system('bash start_ray')
     time.sleep(3)
     
-    ray.init("localhost:6380")
-    
     # Wait for the head node to start
     time.sleep(3)
 
     # Spawn worker process on remote nodes, time limit defaults to 1 hour but is adjustable
     with open('start_ray_worker','w') as f:
-        f.write("/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='localhost':6380; sleep 3600\n")
+        f.write("/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='hostname':6380; sleep 3600\n")
 
     #Call start_ray_worker multiple times for more nodes (5 max)
     for _ in range(n_workers):
         os.system('/usr/local/bin/qsub start_ray_worker')
            
-    #time.sleep(10)
+    time.sleep(10)
     print("Got to 2")
+
+    ray.init("localhost:6380")
     
     #ray.init()
     #ray.init("localhost:6380")
