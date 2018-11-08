@@ -550,6 +550,8 @@ class GraphManager(object):
         self.training_start_time = time.time()
         count_end = self.improve_steps.num_steps
         while self.total_steps_counters[RunPhase.TRAIN][self.improve_steps.__class__] < count_end:
+            print('-'*80)
+            print(self.total_steps_counters[RunPhase.TRAIN][self.improve_steps.__class__])
             self.train_and_act(self.steps_between_evaluation_periods)
             self.evaluate(self.evaluation_steps)
 

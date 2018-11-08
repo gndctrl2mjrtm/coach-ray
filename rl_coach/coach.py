@@ -424,18 +424,19 @@ def main():
         for task_index in range(1, args.num_workers):
             workers.append(start_distributed_ray_task.remote("worker", task_index))
 
+        ray.get(workers)
+
         # evaluation worker
-        if args.evaluation_worker:
-            task_parameters = TaskParameters(framework_type="tensorflow",  # TODO: tensorflow should'nt be hardcoded
-                                             evaluate_only=args.evaluate,
-                                             experiment_path=args.experiment_path,
-                                             seed=args.seed,
-                                             use_cpu=args.use_cpu,
-                                             save_checkpoint_secs=args.save_checkpoint_secs)
+        task_parameters = TaskParameters(framework_type="tensorflow",  # TODO: tensorflow should'nt be hardcoded
+                                         evaluate_only=True,
+                                         experiment_path=args.experiment_path,
+                                         seed=args.seed,
+                                         use_cpu=args.use_cpu,
+                                         save_checkpoint_secs=args.save_checkpoint_secs)
 
-            task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
+        task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
 
-            start_graph(graph_manager=graph_manager,task_parameters=task_parameters,evaluation_worker=True)
+        start_graph(graph_manager=graph_manager,task_parameters=task_parameters)
 
 
 
