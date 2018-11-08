@@ -19,6 +19,7 @@ sys.path.append('.')
 
 import ray
 import dill
+import socket
 import weakref
 
 import copy
@@ -393,9 +394,24 @@ def main():
             ray.init()
 
         ps_hosts = "localhost:{}".format(get_open_port())
-        worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
+        
 
+        @ray.remote
+        def f():
+            time.sleep(0.01)
+            #os.system('/usr/local/bin/qstat')
+            return ray.services.get_node_ip_address()
+
+        if args.on_devcloud:
+            ips = set(ray.get([f.remote() for _ in range(1000)]))
+            
+
+        home_ip = socket.gethostbyname(socket.gethostname())
+
+        worker_ips = [z for z in ips if z != home_ip]
+        worker_hosts = ",".join(["{}:{}".format(n,get_open_port()) for n in ips])
         # Shared memory
+        
         class CommManager(BaseManager):
             pass
         CommManager.register('SharedMemoryScratchPad', SharedMemoryScratchPad, exposed=['add', 'get', 'internal_call'])
