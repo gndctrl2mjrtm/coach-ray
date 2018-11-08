@@ -384,17 +384,12 @@ def main():
 
         if args.on_devcloud:
             ips = create_worker_devcloud(args.num_workers)
+        else:
+            ray.init()
 
         ps_hosts = "localhost:{}".format(get_open_port())
         worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
 
-        # Shared memory
-        # class CommManager(BaseManager):
-        #     pass
-        # CommManager.register('SharedMemoryScratchPad', SharedMemoryScratchPad, exposed=['add', 'get', 'internal_call'])
-        # comm_manager = CommManager()
-        # comm_manager.start()
-        # shared_memory_scratchpad = comm_manager.SharedMemoryScratchPad()
 
         @ray.remote
         def start_distributed_ray_task(job_type, task_index, evaluation_worker=False):
@@ -415,7 +410,7 @@ def main():
             # we assume that only the evaluation workers are rendering
             graph_manager.visualization_parameters.render = args.render and evaluation_worker
             start_graph(graph_manager,task_parameters)
-            return
+            return 1
 
         # parameter server
         parameter_server = start_distributed_ray_task.remote("ps", 0)
@@ -429,23 +424,19 @@ def main():
         for task_index in range(1, args.num_workers):
             workers.append(start_distributed_ray_task.remote("worker", task_index))
 
-
-       
-
         # evaluation worker
         if args.evaluation_worker:
-            evaluation_worker = start_distributed_ray_task.remote("worker", args.num_workers, evaluation_worker=True)
+            task_parameters = TaskParameters(framework_type="tensorflow",  # TODO: tensorflow should'nt be hardcoded
+                                             evaluate_only=args.evaluate,
+                                             experiment_path=args.experiment_path,
+                                             seed=args.seed,
+                                             use_cpu=args.use_cpu,
+                                             save_checkpoint_secs=args.save_checkpoint_secs)
 
-        # wait for all workers
-        #[w.join() for w in workers]
-        #[start_distributed_ray_task.remote()]
-        
-        while True:
-            time.sleep(1)
-            print("Waiting...")
+            task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
 
-        #if args.evaluation_worker:
-        #    evaluation_worker.terminate()
+            start_graph(graph_manager=graph_manager,task_parameters=task_parameters,evaluation_worker=True)
+
 
 
 if __name__ == "__main__":
