@@ -398,6 +398,7 @@ def main():
 
         @ray.remote
         def start_distributed_ray_task(job_type, task_index, evaluation_worker=False):
+            print("This should be running")
             task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
                                                         parameters_server_hosts=ps_hosts,
                                                         worker_hosts=worker_hosts,
@@ -424,8 +425,12 @@ def main():
         workers = []
         workers.append(start_distributed_ray_task.remote("worker", 0))
         time.sleep(2)
+        
         for task_index in range(1, args.num_workers):
             workers.append(start_distributed_ray_task.remote("worker", task_index))
+
+
+       
 
         # evaluation worker
         if args.evaluation_worker:
@@ -434,9 +439,13 @@ def main():
         # wait for all workers
         #[w.join() for w in workers]
         #[start_distributed_ray_task.remote()]
+        
+        while True:
+            time.sleep(1)
+            print("Waiting...")
 
-        if args.evaluation_worker:
-            evaluation_worker.terminate()
+        #if args.evaluation_worker:
+        #    evaluation_worker.terminate()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+Waiting for redis server at 10.5.9.37:6380 to respond...
+Using IP address 10.5.9.55 for this node.
+Process STDOUT and STDERR is being redirected to /tmp/raylogs/.
+Starting the Plasma object store with 80.00 GB memory.
+Starting local scheduler with the following resources: {'CPU': 24, 'GPU': 0}.
+{'redis_address': '10.5.9.37:6380', 'object_manager_ports': [None], 'node_ip_address': '10.5.9.55', 'redis_shards': ['10.5.9.37:58347'], 'object_store_addresses': [ObjectStoreAddress(name='/tmp/plasma_store1580632', manager_name='/tmp/plasma_manager99228050', manager_port=53009)], 'local_scheduler_socket_names': ['/tmp/scheduler16385304'], 'raylet_socket_names': [], 'webui_url': ''}
+
+Started Ray on this node. If you wish to terminate the processes that have been started, run
+
+    ray stop
