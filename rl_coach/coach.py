@@ -26,6 +26,7 @@ from rl_coach import logger
 import traceback
 from rl_coach.logger import screen, failed_imports
 import argparse
+import threading
 import atexit
 import time
 import sys
@@ -413,7 +414,7 @@ def main():
             return 1
 
         # parameter server
-        parameter_server = start_distributed_ray_task.remote("ps", 0)
+        #ray.get(start_distributed_ray_task.remote("ps", 0))
 
         # training workers
         # wait a bit before spawning the non chief workers in order to make sure the session is already created
@@ -423,8 +424,13 @@ def main():
         
         for task_index in range(1, args.num_workers):
             workers.append(start_distributed_ray_task.remote("worker", task_index))
+        
+        def ray_thread():
+            ray.get(start_distributed_ray_task.remote("ps", 0))
+            ray.get(workers)
 
-        ray.get(workers)
+        r_thread = threading.Thread(target=ray_thread,args=())
+        r_thread.start()
 
         # evaluation worker
         task_parameters = TaskParameters(framework_type="tensorflow",  # TODO: tensorflow should'nt be hardcoded
@@ -437,8 +443,6 @@ def main():
         task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
 
         start_graph(graph_manager=graph_manager,task_parameters=task_parameters)
-
-
 
 if __name__ == "__main__":
     main()
