@@ -254,10 +254,10 @@ class Logger(BaseLogger):
 #######################################################################################################################
 
 global experiment_path
-experiment_path = None
+experiment_path = ''
 
 global experiment_name
-experiment_name = None
+experiment_name = ''
 time_started = datetime.datetime.now()
 
 

@@ -18,6 +18,8 @@ import sys
 sys.path.append('.')
 
 import ray
+import dill
+import weakref
 
 import copy
 from rl_coach.core_types import EnvironmentSteps
@@ -32,6 +34,8 @@ import time
 import sys
 from rl_coach.base_parameters import Frameworks, VisualizationParameters, TaskParameters, DistributedTaskParameters
 from multiprocessing.managers import BaseManager
+from multiprocessing import Process
+import multiprocessing
 import subprocess
 from rl_coach.graph_managers.graph_manager import HumanPlayScheduleParameters, GraphManager
 from rl_coach.utils import list_all_presets, short_dynamic_import, get_open_port, SharedMemoryScratchPad, get_base_dir
@@ -391,6 +395,44 @@ def main():
         ps_hosts = "localhost:{}".format(get_open_port())
         worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
 
+        # Shared memory
+        class CommManager(BaseManager):
+            pass
+        CommManager.register('SharedMemoryScratchPad', SharedMemoryScratchPad, exposed=['add', 'get', 'internal_call'])
+        comm_manager = CommManager()
+        comm_manager.start()
+        shared_memory_scratchpad = comm_manager.SharedMemoryScratchPad()
+
+        print('?'*80)
+        print(ps_hosts)
+        print(worker_hosts)
+        print('?'*80)
+
+        
+        @ray.remote
+        def start_distributed_task(job_type, task_index, evaluation_worker=False):
+
+            task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
+                                                        parameters_server_hosts=ps_hosts,
+                                                        worker_hosts=worker_hosts,
+                                                        job_type=job_type,
+                                                        task_index=task_index,
+                                                        evaluate_only=evaluation_worker,
+                                                        use_cpu=args.use_cpu,
+                                                        num_tasks=total_tasks,  # training tasks + 1 evaluation task
+                                                        num_training_tasks=args.num_workers,
+                                                        experiment_path=args.experiment_path,
+                                                        shared_memory_scratchpad=None,
+                                                        seed=args.seed+task_index if args.seed is not None else None)  # each worker gets a different seed
+            task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
+            # we assume that only the evaluation workers are rendering
+
+            graph_manager.visualization_parameters.render = args.render and evaluation_worker
+            start_graph(graph_manager,task_parameters)
+            #p = Process(target=start_graph, args=(graph_manager, task_parameters))
+            #p.start()
+            #return p
+
 
         @ray.remote
         def start_distributed_ray_task(job_type, task_index, evaluation_worker=False):
@@ -412,37 +454,46 @@ def main():
             graph_manager.visualization_parameters.render = args.render and evaluation_worker
             start_graph(graph_manager,task_parameters)
             return 1
-
+        
         # parameter server
-        #ray.get(start_distributed_ray_task.remote("ps", 0))
+        parameter_server = start_distributed_task.remote("ps", 0)
 
         # training workers
         # wait a bit before spawning the non chief workers in order to make sure the session is already created
         workers = []
-        workers.append(start_distributed_ray_task.remote("worker", 0))
+        workers.append(start_distributed_task.remote("worker", 0))
         time.sleep(2)
-        
         for task_index in range(1, args.num_workers):
-            workers.append(start_distributed_ray_task.remote("worker", task_index))
-        
-        def ray_thread():
-            ray.get(start_distributed_ray_task.remote("ps", 0))
-            ray.get(workers)
+            workers.append(start_distributed_task.remote("worker", task_index))
 
-        r_thread = threading.Thread(target=ray_thread,args=())
-        r_thread.start()
+        # task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
+        #                                                 parameters_server_hosts=ps_hosts,
+        #                                                 worker_hosts=worker_hosts,
+        #                                                 job_type="worker",
+        #                                                 task_index=task_index,
+        #                                                 evaluate_only=True,
+        #                                                 use_cpu=args.use_cpu,
+        #                                                 num_tasks=total_tasks,  # training tasks + 1 evaluation task
+        #                                                 num_training_tasks=args.num_workers,
+        #                                                 experiment_path=args.experiment_path,
+        #                                                 shared_memory_scratchpad=None,
+        #                                                 seed=args.seed+task_index if args.seed is not None else None)  # each worker gets a different seed
+        # task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
+        # # we assume that only the evaluation workers are rendering
+        # graph_manager.visualization_parameters.render = args.render
+        # p = Process(target=start_graph, args=(graph_manager, task_parameters))
+        # p.start()
 
-        # evaluation worker
-        task_parameters = TaskParameters(framework_type="tensorflow",  # TODO: tensorflow should'nt be hardcoded
-                                         evaluate_only=True,
-                                         experiment_path=args.experiment_path,
-                                         seed=args.seed,
-                                         use_cpu=args.use_cpu,
-                                         save_checkpoint_secs=args.save_checkpoint_secs)
+        # # evaluation worker
+        # if args.evaluation_worker:
+        #     evaluation_worker = start_distributed_task.remote("worker", args.num_workers, evaluation_worker=True)
 
-        task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
-
-        start_graph(graph_manager=graph_manager,task_parameters=task_parameters)
+        # # wait for all workers
+        # #[w.join() for w in workers]
+        # if args.evaluation_worker:
+        #     evaluation_worker.terminate()
 
 if __name__ == "__main__":
     main()
+
+
