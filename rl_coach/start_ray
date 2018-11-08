@@ -1,1 +1,1 @@
-ray start --head --redis-port=6380
+/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --head --redis-port=6380

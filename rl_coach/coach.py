@@ -441,7 +441,7 @@ def main():
             return p
 
         # parameter server
-        parameter_server = start_distributed_task("ps", 0)
+        parameter_server = start_distributed_ray_task.remote("ps", 0)
 
         # training workers
         # wait a bit before spawning the non chief workers in order to make sure the session is already created
@@ -453,7 +453,7 @@ def main():
 
         # evaluation worker
         if args.evaluation_worker:
-            evaluation_worker = start_distributed_task("worker", args.num_workers, evaluation_worker=True)
+            evaluation_worker = start_distributed_ray_task.remote("worker", args.num_workers, evaluation_worker=True)
 
         # wait for all workers
         #[w.join() for w in workers]

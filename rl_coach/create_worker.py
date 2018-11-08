@@ -1,3 +1,4 @@
+import socket
 import time
 import ray
 import os
@@ -23,7 +24,7 @@ def create_worker_devcloud(n_workers):
 
     # Write the Ray head node commands to start_ray
     with open('start_ray','w') as f:
-        f.write("ray start --head --redis-port=6380\n")
+        f.write("/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --head --redis-port=6380\n")
 
     # Start Ray head node on current node
     #os.system('nohup bash start_ray')
@@ -32,10 +33,14 @@ def create_worker_devcloud(n_workers):
     
     # Wait for the head node to start
     time.sleep(3)
+    
+    home_ip = socket.gethostbyname(socket.gethostname())
 
     # Spawn worker process on remote nodes, time limit defaults to 1 hour but is adjustable
     with open('start_ray_worker','w') as f:
-        f.write("/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='hostname':6380; sleep 3600\n")
+        f.write("/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='{}':6380; sleep 3600\n".format(home_ip))
+
+    ray.init("localhost:6380")
 
     #Call start_ray_worker multiple times for more nodes (5 max)
     for _ in range(n_workers):
@@ -44,7 +49,7 @@ def create_worker_devcloud(n_workers):
     time.sleep(10)
     print("Got to 2")
 
-    ray.init("localhost:6380")
+    #ray.init("localhost:6380")
     
     #ray.init()
     #ray.init("localhost:6380")

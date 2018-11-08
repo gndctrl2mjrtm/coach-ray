@@ -1,1 +1,1 @@
-/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='localhost':6380; sleep 3600
+/glob/intel-python/versions/2018u2/intelpython3/bin/python ~/.local/bin/ray start --redis-address='10.5.9.31':6380; sleep 3600
