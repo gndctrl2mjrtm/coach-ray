@@ -390,40 +390,32 @@ def main():
 
         if args.on_devcloud:
             ips = create_worker_devcloud(args.num_workers)
+
+            @ray.remote
+            def f():
+                time.sleep(0.01)
+                #os.system('/usr/local/bin/qstat')
+                return ray.services.get_node_ip_address()
+
+            if args.on_devcloud:
+                ips = set(ray.get([f.remote() for _ in range(1000)]))
+                
+            home_ip = socket.gethostbyname(socket.gethostname())
+
+            worker_ips = [z for z in ips if z != home_ip]
+            worker_hosts = ",".join(["{}:{}".format(n,get_open_port()) for n in ips])
+
         else:
             ray.init()
+            worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
+    
 
         ps_hosts = "localhost:{}".format(get_open_port())
-        
-
-        @ray.remote
-        def f():
-            time.sleep(0.01)
-            #os.system('/usr/local/bin/qstat')
-            return ray.services.get_node_ip_address()
-
-        if args.on_devcloud:
-            ips = set(ray.get([f.remote() for _ in range(1000)]))
-            
-
-        home_ip = socket.gethostbyname(socket.gethostname())
-
-        worker_ips = [z for z in ips if z != home_ip]
-        worker_hosts = ",".join(["{}:{}".format(n,get_open_port()) for n in ips])
-        # Shared memory
-        
-        class CommManager(BaseManager):
-            pass
-        CommManager.register('SharedMemoryScratchPad', SharedMemoryScratchPad, exposed=['add', 'get', 'internal_call'])
-        comm_manager = CommManager()
-        comm_manager.start()
-        shared_memory_scratchpad = comm_manager.SharedMemoryScratchPad()
 
         print('?'*80)
         print(ps_hosts)
         print(worker_hosts)
         print('?'*80)
-
         
         @ray.remote
         def start_distributed_task(job_type, task_index, evaluation_worker=False):
@@ -447,12 +439,11 @@ def main():
             start_graph(graph_manager,task_parameters)
             #p = Process(target=start_graph, args=(graph_manager, task_parameters))
             #p.start()
-            #return p
+            return 
 
 
         @ray.remote
         def start_distributed_ray_task(job_type, task_index, evaluation_worker=False):
-            print("This should be running")
             task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
                                                         parameters_server_hosts=ps_hosts,
                                                         worker_hosts=worker_hosts,
@@ -479,35 +470,29 @@ def main():
         workers = []
         workers.append(start_distributed_task.remote("worker", 0))
         time.sleep(2)
-        for task_index in range(1, args.num_workers):
-            workers.append(start_distributed_task.remote("worker", task_index))
 
+        for task_index in range(1, args.num_workers):
+            workers.append(start_distributed_task.remote("worker",task_index))
+
+        # time.sleep(20)
         # task_parameters = DistributedTaskParameters(framework_type="tensorflow", # TODO: tensorflow should'nt be hardcoded
-        #                                                 parameters_server_hosts=ps_hosts,
-        #                                                 worker_hosts=worker_hosts,
-        #                                                 job_type="worker",
-        #                                                 task_index=task_index,
-        #                                                 evaluate_only=True,
-        #                                                 use_cpu=args.use_cpu,
-        #                                                 num_tasks=total_tasks,  # training tasks + 1 evaluation task
-        #                                                 num_training_tasks=args.num_workers,
-        #                                                 experiment_path=args.experiment_path,
-        #                                                 shared_memory_scratchpad=None,
-        #                                                 seed=args.seed+task_index if args.seed is not None else None)  # each worker gets a different seed
+        #     parameters_server_hosts=ps_hosts,
+        #     worker_hosts=worker_hosts,
+        #     job_type="worker",
+        #     task_index=task_index,
+        #     evaluate_only=True,
+        #     use_cpu=args.use_cpu,
+        #     num_tasks=total_tasks,  # training tasks + 1 evaluation task
+        #     num_training_tasks=args.num_workers,
+        #     experiment_path=args.experiment_path,
+        #     shared_memory_scratchpad=None,
+        #     seed=args.seed+task_index if args.seed is not None else None)  # each worker gets a different seed
+
         # task_parameters.__dict__ = add_items_to_dict(task_parameters.__dict__, args.__dict__)
+        
         # # we assume that only the evaluation workers are rendering
         # graph_manager.visualization_parameters.render = args.render
-        # p = Process(target=start_graph, args=(graph_manager, task_parameters))
-        # p.start()
-
-        # # evaluation worker
-        # if args.evaluation_worker:
-        #     evaluation_worker = start_distributed_task.remote("worker", args.num_workers, evaluation_worker=True)
-
-        # # wait for all workers
-        # #[w.join() for w in workers]
-        # if args.evaluation_worker:
-        #     evaluation_worker.terminate()
+        # start_graph(graph_manager,task_parameters)
 
 if __name__ == "__main__":
     main()
