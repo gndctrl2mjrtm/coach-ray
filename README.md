@@ -1,4 +1,5 @@
-# Coach-Ray (RL-Coach with Ray for Distributed Reinforcement Learning)
+# Coach-Ray 
+## (RL-Coach with Ray for Distributed Reinforcement Learning)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/NervanaSystems/coach/blob/master/LICENSE)
 [![Docs](https://readthedocs.org/projects/carla/badge/?version=latest)](https://nervanasystems.github.io/coach/)
