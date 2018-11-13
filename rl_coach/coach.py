@@ -409,13 +409,7 @@ def main():
             ray.init()
             worker_hosts = ",".join(["localhost:{}".format(get_open_port()) for i in range(total_tasks)])
     
-
         ps_hosts = "localhost:{}".format(get_open_port())
-
-        print('?'*80)
-        print(ps_hosts)
-        print(worker_hosts)
-        print('?'*80)
         
         @ray.remote
         def start_distributed_task(job_type, task_index, evaluation_worker=False):
